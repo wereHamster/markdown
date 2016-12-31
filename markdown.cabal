@@ -26,7 +26,6 @@ Library
                      , attoparsec             >= 0.10
                      , transformers           >= 0.2.2
                      , conduit                >= 1.1
-                     , conduit-extra          >= 1.1
                      , text
                      , data-default           >= 0.3
                      , xss-sanitize           >= 0.3.3
@@ -50,7 +49,6 @@ test-suite test
                  , text
                  , transformers
                  , conduit
-                 , conduit-extra
                  , containers
                  , filepath
                  , directory

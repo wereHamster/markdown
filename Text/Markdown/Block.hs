@@ -11,15 +11,14 @@ module Text.Markdown.Block
     , toBlockLines
     ) where
 
-import Prelude
-import Control.Monad (msum)
+import Prelude hiding (lines)
+import Control.Monad (msum, unless)
 #if MIN_VERSION_conduit(1, 0, 0)
 import Data.Conduit
 #else
 import Data.Conduit hiding ((=$=))
 import Data.Conduit.Internal (pipeL)
 #endif
-import qualified Data.Conduit.Text as CT
 import qualified Data.Conduit.List as CL
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -34,6 +33,24 @@ import qualified Data.Map as Map
 (=$=) = pipeL
 #endif
 
+-- This function is copied from conduit-extra to avoid pulling in the whole
+-- dependency, which would also pull in 'network'.
+lines :: Monad m => Conduit T.Text m T.Text
+lines =
+    awaitText T.empty
+  where
+    awaitText buf = await >>= maybe (finish buf) (process buf)
+
+    finish buf = unless (T.null buf) (yield buf)
+
+    process buf text = yieldLines $ buf `T.append` text
+
+    yieldLines buf =
+      let (line, rest) = T.break (== '\n') buf
+      in  case T.uncons rest of
+            Just (_, rest') -> yield line >> yieldLines rest'
+            _ -> awaitText line
+
 toBlockLines :: Block Text -> Block [Text]
 toBlockLines = fmap $ map T.stripEnd
                     . concatMap (T.splitOn "  \r\n")
@@ -41,7 +58,7 @@ toBlockLines = fmap $ map T.stripEnd
 
 toBlocks :: Monad m => MarkdownSettings -> Conduit Text m (Block Text)
 toBlocks ms =
-    mapOutput fixWS CT.lines =$= toBlocksLines ms
+    mapOutput fixWS lines =$= toBlocksLines ms
   where
     fixWS = T.pack . go 0 . T.unpack
 
